@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DTF Studio</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeSettings()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Настройки</h2>
+        <button class="btn-icon" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-group">
+          <label>Gemini API Key</label>
+          <input type="password" id="geminiKey" placeholder="AIza..." />
+        </div>
+        <div class="setting-group">
+          <label>remove.bg API Key</label>
+          <input type="password" id="removeBgKey" placeholder="API key..." />
+        </div>
+        <div class="setting-group">
+          <label>Replicate API Key</label>
+          <input type="password" id="replicateKey" placeholder="r8_..." />
+        </div>
+        <div class="setting-group">
+          <label>Код дизайнера</label>
+          <input type="text" id="designerCode" placeholder="lee, kar, max..." />
+        </div>
+        <div class="setting-group">
+          <label>Стартовый номер принта</label>
+          <input type="number" id="startNumber" placeholder="9586" />
+        </div>
+        <button class="btn-primary" onclick="saveSettings()">Сохранить</button>
+        <button class="btn-secondary mt-8" onclick="testAPIs()">Проверить подключение API</button>
+        <div id="apiTestResult" class="api-test-result hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <span class="logo-text">DTF</span>
+        <span class="logo-sub">Studio</span>
+      </div>
+      <nav class="tabs">
+        <button class="tab active" data-tab="editor" onclick="switchTab('editor')">Редактор</button>
+        <button class="tab" data-tab="colors" onclick="switchTab('colors')">Цвета</button>
+        <button class="tab" data-tab="layers" onclick="switchTab('layers')">Слои</button>
+      </nav>
+    </div>
+    <div class="topbar-center">
+      <div id="fileInfo" class="file-info hidden">
+        <span id="fileName" class="file-name"></span>
+        <span class="separator">·</span>
+        <span id="fileDimensions" class="file-dim"></span>
+        <span class="separator">·</span>
+        <span id="fileSize" class="file-size"></span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="undo-redo">
+        <button class="btn-icon" onclick="undo()" title="Откат">↩</button>
+        <button class="btn-icon" onclick="resetImage()" title="Сброс">⊘</button>
+      </div>
+      <button class="btn-primary" onclick="exportPNG()" id="exportBtn" disabled>Экспорт PNG</button>
+      <button class="btn-icon" onclick="openSettings()" title="Настройки">⚙</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="left-panel">
+      <section class="panel-section">
+        <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+          <div class="drop-icon">⬆</div>
+          <div class="drop-text">Перетащите изображение<br>или нажмите для выбора</div>
+          <div class="drop-formats">PNG · JPG · JPEG · WEBP</div>
+        </div>
+        <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.webp" hidden>
+      </section>
+
+      <section class="panel-section hidden" id="printParams">
+        <div class="section-title">Параметры печати</div>
+        <div class="param-row">
+          <label>DPI</label>
+          <input type="number" id="dpiInput" value="300" min="1" class="param-input" oninput="updateDPI()">
+        </div>
+        <div class="param-row">
+          <label>Размер</label>
+          <span id="physicalSize" class="param-value">—</span>
+        </div>
+        <div id="qualityBadge" class="quality-badge"></div>
+      </section>
+
+      <section class="panel-section hidden" id="analysisSection">
+        <div class="section-title">AI Анализ
+          <span id="analysisSpinner" class="spinner hidden"></span>
+        </div>
+        <div id="analysisCard" class="analysis-card hidden">
+          <div class="analysis-row"><span class="analysis-label">Вердикт</span><span id="aVerdict" class="analysis-value"></span></div>
+          <div class="analysis-row"><span class="analysis-label">DPI</span><span id="aDpi" class="analysis-value"></span></div>
+          <div class="analysis-row"><span class="analysis-label">Фон</span><span id="aBg" class="analysis-value"></span></div>
+          <div class="analysis-row"><span class="analysis-label">Водяной знак</span><span id="aWatermark" class="analysis-value"></span></div>
+        </div>
+        <div id="analysisError" class="analysis-error hidden"></div>
+      </section>
+
+      <section class="panel-section hidden" id="bgSection">
+        <div class="section-title">Удаление фона</div>
+        <div class="btn-group-col">
+          <button class="btn-secondary" onclick="removeBgAPI()">AI (remove.bg)</button>
+          <button class="btn-secondary" onclick="floodFill()">Flood Fill</button>
+          <button class="btn-secondary" onclick="removeByColor()">По цвету</button>
+          <button class="btn-secondary" onclick="removeWhite()">Удалить белый</button>
+          <button class="btn-secondary" onclick="removeDark()">Удалить тёмный</button>
+        </div>
+        <div id="thresholdRow" class="param-row hidden" style="margin-top:8px;">
+          <label id="thresholdLabel">Порог</label>
+          <input type="range" id="thresholdSlider" min="0" max="100" value="30" oninput="updateThresholdLabel()">
+          <span id="thresholdValue" class="param-value">30</span>
+        </div>
+      </section>
+
+      <section class="panel-section hidden" id="edgeSection">
+        <div class="section-title">Обработка краёв</div>
+        <div class="param-row">
+          <label>Feather</label>
+          <input type="range" id="featherSlider" min="0" max="30" value="0" oninput="updateEdge()">
+          <span id="featherVal" class="param-value">0</span>
+        </div>
+        <div class="param-row">
+          <label>Expand/Shrink</label>
+          <input type="range" id="expandSlider" min="-15" max="15" value="0" oninput="updateEdge()">
+          <span id="expandVal" class="param-value">0</span>
+        </div>
+        <div class="param-row">
+          <label>Defringe</label>
+          <input type="range" id="defringeSlider" min="0" max="10" value="0" oninput="updateEdge()">
+          <span id="defringeVal" class="param-value">0</span>
+        </div>
+        <div class="param-row">
+          <label>Полупрозрачность</label>
+          <input type="checkbox" id="semiTransparent" onchange="updateEdge()">
+        </div>
+        <button class="btn-secondary mt-8" onclick="applyEdge()">Применить</button>
+      </section>
+
+      <section class="panel-section hidden" id="brushSection">
+        <div class="section-title">Кисть</div>
+        <div class="btn-group-row">
+          <button class="btn-tool active" id="brushRestore" onclick="setBrushMode('restore')">Вернуть</button>
+          <button class="btn-tool" id="brushErase" onclick="setBrushMode('erase')">Стереть</button>
+        </div>
+        <div class="param-row mt-8">
+          <label>Размер</label>
+          <input type="range" id="brushSize" min="1" max="100" value="20" oninput="document.getElementById('brushSizeVal').textContent=this.value">
+          <span id="brushSizeVal" class="param-value">20</span>
+        </div>
+        <div class="param-row">
+          <label>Мягкость</label>
+          <input type="range" id="brushSoftness" min="0" max="100" value="50" oninput="document.getElementById('brushSoftVal').textContent=this.value">
+          <span id="brushSoftVal" class="param-value">50</span>
+        </div>
+        <div class="param-row">
+          <label>Показать маску</label>
+          <input type="checkbox" id="showMask" onchange="toggleMaskView()">
+        </div>
+      </section>
+
+      <section class="panel-section hidden" id="upscaleSection">
+        <div class="section-title">AI Апскейл</div>
+        <div class="btn-group-row">
+          <button class="btn-tool active" id="scale2x" onclick="setScale(2)">2x</button>
+          <button class="btn-tool" id="scale4x" onclick="setScale(4)">4x</button>
+          <button class="btn-tool" id="scale8x" onclick="setScale(8)">8x</button>
+        </div>
+        <button class="btn-primary mt-8" id="upscaleBtn" onclick="upscaleImage()">Улучшить качество</button>
+        <div id="upscaleProgress" class="progress-bar hidden">
+          <div id="upscaleProgressFill" class="progress-fill"></div>
+          <span id="upscaleStatus" class="progress-status">Обработка...</span>
+        </div>
+        <button class="btn-secondary mt-4 hidden" id="rollbackUpscaleBtn" onclick="rollbackUpscale()">Откатить</button>
+      </section>
+
+      <section class="panel-section hidden" id="colorSection">
+        <div class="section-title">Разделение по цветам</div>
+        <div class="param-row">
+          <label>Количество</label>
+          <input type="range" id="colorCount" min="2" max="16" value="6" oninput="document.getElementById('colorCountVal').textContent=this.value">
+          <span id="colorCountVal" class="param-value">6</span>
+        </div>
+        <button class="btn-secondary" onclick="separateColors()">Разделить</button>
+      </section>
+
+      <section class="panel-section hidden" id="promptSection">
+        <div class="section-title">Библиотека промтов</div>
+        <select id="promptCategory" class="select" onchange="loadPrompts()">
+          <option value="quality">Улучшение качества</option>
+          <option value="background">Работа с фоном</option>
+          <option value="dtf">Подготовка к DTF</option>
+          <option value="special">Специальные случаи</option>
+        </select>
+        <div id="promptList" class="prompt-list"></div>
+        <textarea id="promptInput" class="textarea mt-8" placeholder="Или введите свой промт..." rows="3"></textarea>
+        <button class="btn-secondary mt-4" onclick="copyPrompt()">Скопировать</button>
+      </section>
+
+      <section class="panel-section hidden" id="saveSection">
+        <div class="section-title">Сохранение файла</div>
+        <div class="param-row">
+          <label>Код дизайнера</label>
+          <input type="text" id="saveDesignerCode" class="param-input" placeholder="lee" oninput="updateFilePreview()">
+        </div>
+        <div class="param-row">
+          <label>Тип принта</label>
+          <select id="printType" class="select-sm" onchange="updateFilePreview()">
+            <option value="">Передняя часть</option>
+            <option value="spn">spn — Спина</option>
+            <option value="bok">bok — Боковой</option>
+            <option value="dva">dva — Двойной</option>
+          </select>
+        </div>
+        <div class="param-row">
+          <label>Цвет футболки</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="toggleWhite" onclick="setShirtColor('white')">Белая</button>
+            <button class="toggle-btn" id="toggleBlack" onclick="setShirtColor('black')">Чёрная</button>
+          </div>
+        </div>
+        <div class="param-row">
+          <label>Код креатора</label>
+          <input type="text" id="creatorCode" class="param-input" placeholder="ks" oninput="updateFilePreview()">
+        </div>
+        <div class="file-preview">
+          <span class="file-preview-label">Имя файла:</span>
+          <span id="filePreviewName" class="file-preview-value">—</span>
+        </div>
+        <button class="btn-primary mt-8" onclick="savePNG()" id="savePngBtn">Сохранить PNG</button>
+      </section>
+    </aside>
+
+    <div class="canvas-area">
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon">🖼</div>
+        <div class="empty-text">Загрузите изображение для начала работы</div>
+        <button class="btn-primary mt-16" onclick="document.getElementById('fileInput').click()">Выбрать файл</button>
+      </div>
+      <div id="canvasContainer" class="canvas-container hidden">
+        <div id="tabEditor" class="tab-pane active">
+          <div class="canvas-toolbar">
+            <div class="bg-switcher">
+              <span class="bg-label">Фон:</span>
+              <button class="bg-btn active" onclick="setCanvasBg('transparent')" data-bg="transparent">Прозрачный</button>
+              <button class="bg-btn" onclick="setCanvasBg('white')" data-bg="white">Белый</button>
+              <button class="bg-btn" onclick="setCanvasBg('black')" data-bg="black">Чёрный</button>
+              <button class="bg-btn" onclick="setCanvasBg('checker')" data-bg="checker">Шахматный</button>
+            </div>
+            <div class="view-switcher">
+              <button class="view-btn active" onclick="setView('original')" data-view="original">Оригинал</button>
+              <button class="view-btn" onclick="setView('result')" data-view="result">Результат</button>
+            </div>
+          </div>
+          <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="mainCanvas"></canvas>
+            <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
+          </div>
+        </div>
+        <div id="tabColors" class="tab-pane hidden">
+          <div id="colorLayersGrid" class="color-layers-grid"></div>
+        </div>
+        <div id="tabLayers" class="tab-pane hidden">
+          <div id="layersList" class="layers-list"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/promptLibrary.js"></script>
+  <script src="js/colorSeparation.js"></script>
+  <script src="js/backgroundRemoval.js"></script>
+  <script src="js/geminiAnalysis.js"></script>
+  <script src="js/fileSaver.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
