@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DTF AI — Gemini Chat</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #232636;
+      --border: #2e3248;
+      --accent: #FF4D6D;
+      --accent2: #FF8C42;
+      --text: #e8eaf0;
+      --text-dim: #8b8fa8;
+      --radius: 10px;
+      --user-bg: #1e2540;
+      --ai-bg: #1a1d27;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; height: 100dvh; display: flex; flex-direction: column; }
+
+    /* Header */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .logo { font-size: 18px; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap; }
+    .key-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+    .key-wrap label { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+    .key-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text); font-size: 13px; min-width: 0; outline: none; }
+    .key-input:focus { border-color: var(--accent); }
+    .btn-save { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .key-status { font-size: 11px; white-space: nowrap; }
+    .key-status.ok { color: #4ade80; }
+    .key-status.no { color: var(--accent); }
+
+    /* Chat */
+    .chat { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .chat::-webkit-scrollbar { width: 4px; }
+    .chat::-webkit-scrollbar-track { background: transparent; }
+    .chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg { display: flex; gap: 10px; max-width: 820px; width: 100%; }
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.ai { align-self: flex-start; }
+    .msg-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+    .msg.user .msg-avatar { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+    .msg.ai .msg-avatar { background: var(--surface2); border: 1px solid var(--border); }
+    .msg-body { flex: 1; min-width: 0; }
+    .msg-bubble { background: var(--user-bg); border-radius: var(--radius); padding: 10px 14px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .msg.ai .msg-bubble { background: var(--ai-bg); border: 1px solid var(--border); }
+    .msg-image { max-width: 280px; border-radius: 8px; display: block; margin-bottom: 8px; }
+
+    .typing { display: flex; align-items: center; gap: 5px; padding: 10px 14px; background: var(--ai-bg); border: 1px solid var(--border); border-radius: var(--radius); width: fit-content; }
+    .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); animation: bounce 1.2s infinite; }
+    .typing span:nth-child(2) { animation-delay: .2s; }
+    .typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+    .empty-chat { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-dim); }
+    .empty-chat .big-icon { font-size: 48px; }
+    .empty-chat p { font-size: 15px; }
+
+    /* Prompt library */
+    .prompt-bar {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .prompt-bar label { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+    .prompt-select { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 5px 8px; flex: 1; min-width: 0; outline: none; cursor: pointer; }
+    .btn-insert { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    .btn-insert:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Input area */
+    .input-area {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 12px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+    .attach-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; flex-shrink: 0; transition: border-color .2s; }
+    .attach-btn:hover { border-color: var(--accent); }
+    .attach-btn.has-image { border-color: #4ade80; background: rgba(74,222,128,.1); }
+    #imageInput { display: none; }
+    .textarea-wrap { flex: 1; position: relative; }
+    .msg-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 14px; font-family: inherit; resize: none; outline: none; max-height: 140px; line-height: 1.5; }
+    .msg-input:focus { border-color: var(--accent); }
+    .send-btn { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; flex-shrink: 0; transition: opacity .2s; }
+    .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .image-preview-wrap { padding: 0 12px 6px; background: var(--surface); }
+    .image-preview { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; width: fit-content; }
+    .image-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+    .image-preview span { font-size: 12px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+    .rm-img { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 0 2px; line-height: 1; }
+    .rm-img:hover { color: var(--accent); }
+
+    @media (max-width: 600px) {
+      .key-wrap label { display: none; }
+      .logo { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header / API Key -->
+<div class="header">
+  <div class="logo">DTF AI</div>
+  <div class="key-wrap">
+    <label>Gemini Key:</label>
+    <input type="password" class="key-input" id="keyInput" placeholder="AIza..." autocomplete="off">
+    <button class="btn-save" onclick="saveKey()">Сохранить</button>
+    <span class="key-status" id="keyStatus"></span>
+  </div>
+</div>
+
+<!-- Chat messages -->
+<div class="chat" id="chat">
+  <div class="empty-chat" id="emptyState">
+    <div class="big-icon">✨</div>
+    <p>Загрузите изображение и задайте вопрос</p>
+    <p style="font-size:13px">Или просто напишите запрос — Gemini поможет с DTF-печатью</p>
+  </div>
+</div>
+
+<!-- Prompt library -->
+<div class="prompt-bar">
+  <label>📚 Промты:</label>
+  <select class="prompt-select" id="promptSelect">
+    <optgroup label="— Анализ для DTF —">
+      <option value="Проанализируй это изображение для DTF-печати: оцени качество, разрешение, фон, наличие водяных знаков, цветовой охват. Дай рекомендации.">Полный анализ для DTF</option>
+      <option value="Оцени разрешение и качество изображения. Подходит ли оно для DTF-печати (нужно минимум 150 DPI, желательно 300+)?">Оценка разрешения</option>
+      <option value="Опиши фон изображения. Нужно ли его удалять для DTF-печати? Какой способ удаления рекомендуешь?">Анализ фона</option>
+      <option value="Есть ли на изображении артефакты, шум, размытость, JPEG-компрессия? Что нужно исправить перед печатью?">Поиск дефектов</option>
+    </optgroup>
+    <optgroup label="— Улучшение и советы —">
+      <option value="Что конкретно нужно сделать с этим изображением, чтобы подготовить его к DTF-печати на футболке? Дай пошаговый план.">Пошаговая подготовка</option>
+      <option value="Как лучше обрезать/скомпоновать этот дизайн для печати на передней части футболки? Рекомендуй размер и отступы.">Компоновка на футболке</option>
+      <option value="Оцени цвета на изображении. Какие цвета могут плохо лечь при DTF-печати? Что стоит скорректировать?">Анализ цветов</option>
+      <option value="Есть ли на изображении мелкие детали или тонкие линии, которые могут плохо пропечататься на DTF? Укажи проблемные места.">Мелкие детали</option>
+    </optgroup>
+    <optgroup label="— Генерация промтов —">
+      <option value="Опиши это изображение максимально детально: стиль, цвета, элементы, настроение. Используй описание как промт для воссоздания в Midjourney/DALL-E.">Промт для Midjourney</option>
+      <option value="Предложи 3 варианта улучшенного дизайна на основе этого изображения для DTF-печати. Опиши каждый вариант как промт для генерации.">Идеи вариантов дизайна</option>
+      <option value="Придумай 5 похожих дизайнов в том же стиле для коллекции футболок. Опиши каждый одним абзацем.">Идеи для коллекции</option>
+    </optgroup>
+    <optgroup label="— Свободные вопросы —">
+      <option value="Что изображено на картинке? Опиши подробно.">Описать изображение</option>
+      <option value="">— Свой вопрос —</option>
+    </optgroup>
+  </select>
+  <button class="btn-insert" onclick="insertPrompt()">Вставить ↓</button>
+</div>
+
+<!-- Image preview (shown when image attached) -->
+<div class="image-preview-wrap" id="imagePreviewWrap" style="display:none">
+  <div class="image-preview">
+    <img id="thumbImg" src="" alt="">
+    <span id="thumbName"></span>
+    <button class="rm-img" onclick="removeImage()" title="Удалить">✕</button>
+  </div>
+</div>
+
+<!-- Input area -->
+<div class="input-area">
+  <div class="attach-btn" id="attachBtn" onclick="document.getElementById('imageInput').click()" title="Прикрепить изображение">📎</div>
+  <input type="file" id="imageInput" accept="image/*" onchange="handleImageAttach(event)">
+  <div class="textarea-wrap">
+    <textarea class="msg-input" id="msgInput" placeholder="Напишите вопрос про изображение..." rows="1"
+      onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+  </div>
+  <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Отправить">➤</button>
+</div>
+
+<script>
+  let attachedImage = null;
+  let isLoading = false;
+  const chat = document.getElementById('chat');
+  const emptyState = document.getElementById('emptyState');
+  const msgInput = document.getElementById('msgInput');
+
+  function loadKey() {
+    const k = localStorage.getItem('geminiKey') || '';
+    document.getElementById('keyInput').value = k;
+    updateKeyStatus(k);
+  }
+
+  function saveKey() {
+    const val = document.getElementById('keyInput').value.trim();
+    if (val) localStorage.setItem('geminiKey', val);
+    else localStorage.removeItem('geminiKey');
+    updateKeyStatus(val);
+    const btn = document.querySelector('.btn-save');
+    btn.textContent = '✓ Сохранён';
+    setTimeout(() => btn.textContent = 'Сохранить', 1500);
+  }
+
+  function updateKeyStatus(k) {
+    const el = document.getElementById('keyStatus');
+    if (k) { el.textContent = '● активен'; el.className = 'key-status ok'; }
+    else { el.textContent = '● не указан'; el.className = 'key-status no'; }
+  }
+
+  function handleImageAttach(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      attachedImage = { dataUrl: ev.target.result, name: file.name, mimeType: file.type || 'image/png' };
+      document.getElementById('thumbImg').src = ev.target.result;
+      document.getElementById('thumbName').textContent = file.name;
+      document.getElementById('imagePreviewWrap').style.display = 'block';
+      document.getElementById('attachBtn').classList.add('has-image');
+      msgInput.placeholder = 'Что сделать с этим изображением?';
+      msgInput.focus();
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  function removeImage() {
+    attachedImage = null;
+    document.getElementById('imagePreviewWrap').style.display = 'none';
+    document.getElementById('attachBtn').classList.remove('has-image');
+    msgInput.placeholder = 'Напишите вопрос про изображение...';
+  }
+
+  function insertPrompt() {
+    const val = document.getElementById('promptSelect').value;
+    if (!val) return;
+    msgInput.value = val;
+    autoResize(msgInput);
+    msgInput.focus();
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  }
+
+  function scrollToBottom() { chat.scrollTop = chat.scrollHeight; }
+
+  function hideEmpty() { if (emptyState) emptyState.style.display = 'none'; }
+
+  function addUserMsg(text, imgDataUrl) {
+    hideEmpty();
+    const div = document.createElement('div');
+    div.className = 'msg user';
+    div.innerHTML = `
+      <div class="msg-avatar">👤</div>
+      <div class="msg-body">
+        ${imgDataUrl ? `<img class="msg-image" src="${imgDataUrl}">` : ''}
+        ${text ? `<div class="msg-bubble">${escHtml(text)}</div>` : ''}
+      </div>`;
+    chat.appendChild(div);
+    scrollToBottom();
+  }
+
+  function addAiMsg(text) {
+    const div = document.createElement('div');
+    div.className = 'msg ai';
+    div.innerHTML = `
+      <div class="msg-avatar">✨</div>
+      <div class="msg-body"><div class="msg-bubble">${escHtml(text)}</div></div>`;
+    chat.appendChild(div);
+    scrollToBottom();
+  }
+
+  function addTyping() {
+    hideEmpty();
+    const div = document.createElement('div');
+    div.className = 'msg ai';
+    div.id = 'typingMsg';
+    div.innerHTML = `
+      <div class="msg-avatar">✨</div>
+      <div class="msg-body"><div class="typing"><span></span><span></span><span></span></div></div>`;
+    chat.appendChild(div);
+    scrollToBottom();
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typingMsg');
+    if (t) t.remove();
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function sendMessage() {
+    const text = msgInput.value.trim();
+    if ((!text && !attachedImage) || isLoading) return;
+
+    const key = localStorage.getItem('geminiKey');
+    if (!key) {
+      alert('Укажите Gemini API Key в поле выше и нажмите «Сохранить»');
+      document.getElementById('keyInput').focus();
+      return;
+    }
+
+    const imgSnapshot = attachedImage ? { ...attachedImage } : null;
+    addUserMsg(text, imgSnapshot?.dataUrl);
+
+    msgInput.value = '';
+    autoResize(msgInput);
+    removeImage();
+
+    isLoading = true;
+    document.getElementById('sendBtn').disabled = true;
+    addTyping();
+
+    try {
+      const parts = [];
+      if (text) parts.push({ text });
+      if (imgSnapshot) {
+        const base64 = imgSnapshot.dataUrl.split(',')[1];
+        parts.push({ inline_data: { mime_type: imgSnapshot.mimeType, data: base64 } });
+      }
+
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts }] })
+        }
+      );
+
+      removeTyping();
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        addAiMsg('Ошибка: ' + (err.error?.message || `HTTP ${resp.status}`));
+      } else {
+        const data = await resp.json();
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '(пустой ответ)';
+        addAiMsg(reply);
+      }
+    } catch (e) {
+      removeTyping();
+      addAiMsg('Ошибка сети: ' + e.message);
+    } finally {
+      isLoading = false;
+      document.getElementById('sendBtn').disabled = false;
+    }
+  }
+
+  loadKey();
+</script>
+</body>
+</html>
