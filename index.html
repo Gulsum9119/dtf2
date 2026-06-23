@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
+  <!-- Settings Modal -->
   <div id="settingsModal" class="modal hidden">
     <div class="modal-backdrop" onclick="closeSettings()"></div>
     <div class="modal-content">
@@ -42,6 +43,7 @@
     </div>
   </div>
 
+  <!-- Top Bar -->
   <header class="topbar">
     <div class="topbar-left">
       <div class="logo">
@@ -73,8 +75,11 @@
     </div>
   </header>
 
+  <!-- Main Layout -->
   <main class="layout">
+    <!-- Left Panel -->
     <aside class="left-panel">
+      <!-- Upload -->
       <section class="panel-section">
         <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
           <div class="drop-icon">⬆</div>
@@ -84,6 +89,7 @@
         <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.webp" hidden>
       </section>
 
+      <!-- DPI & Print Params (shown after upload) -->
       <section class="panel-section hidden" id="printParams">
         <div class="section-title">Параметры печати</div>
         <div class="param-row">
@@ -97,19 +103,34 @@
         <div id="qualityBadge" class="quality-badge"></div>
       </section>
 
+      <!-- AI Analysis (shown after upload) -->
       <section class="panel-section hidden" id="analysisSection">
         <div class="section-title">AI Анализ
           <span id="analysisSpinner" class="spinner hidden"></span>
         </div>
         <div id="analysisCard" class="analysis-card hidden">
-          <div class="analysis-row"><span class="analysis-label">Вердикт</span><span id="aVerdict" class="analysis-value"></span></div>
-          <div class="analysis-row"><span class="analysis-label">DPI</span><span id="aDpi" class="analysis-value"></span></div>
-          <div class="analysis-row"><span class="analysis-label">Фон</span><span id="aBg" class="analysis-value"></span></div>
-          <div class="analysis-row"><span class="analysis-label">Водяной знак</span><span id="aWatermark" class="analysis-value"></span></div>
+          <div class="analysis-row">
+            <span class="analysis-label">Вердикт</span>
+            <span id="aVerdict" class="analysis-value"></span>
+          </div>
+          <div class="analysis-row">
+            <span class="analysis-label">DPI</span>
+            <span id="aDpi" class="analysis-value"></span>
+          </div>
+          <div class="analysis-row">
+            <span class="analysis-label">Фон</span>
+            <span id="aBg" class="analysis-value"></span>
+          </div>
+          <div class="analysis-row">
+            <span class="analysis-label">Водяной знак</span>
+            <span id="aWatermark" class="analysis-value"></span>
+          </div>
         </div>
         <div id="analysisError" class="analysis-error hidden"></div>
+        <button id="retryAnalysisBtn" class="btn btn-secondary hidden" onclick="retryAnalysis()" style="margin-top:8px;width:100%">Повторить анализ</button>
       </section>
 
+      <!-- Background Removal -->
       <section class="panel-section hidden" id="bgSection">
         <div class="section-title">Удаление фона</div>
         <div class="btn-group-col">
@@ -126,6 +147,7 @@
         </div>
       </section>
 
+      <!-- Edge Processing -->
       <section class="panel-section hidden" id="edgeSection">
         <div class="section-title">Обработка краёв</div>
         <div class="param-row">
@@ -150,6 +172,7 @@
         <button class="btn-secondary mt-8" onclick="applyEdge()">Применить</button>
       </section>
 
+      <!-- Manual Brush -->
       <section class="panel-section hidden" id="brushSection">
         <div class="section-title">Кисть</div>
         <div class="btn-group-row">
@@ -172,6 +195,7 @@
         </div>
       </section>
 
+      <!-- AI Upscale -->
       <section class="panel-section hidden" id="upscaleSection">
         <div class="section-title">AI Апскейл</div>
         <div class="btn-group-row">
@@ -187,6 +211,7 @@
         <button class="btn-secondary mt-4 hidden" id="rollbackUpscaleBtn" onclick="rollbackUpscale()">Откатить</button>
       </section>
 
+      <!-- Color Separation -->
       <section class="panel-section hidden" id="colorSection">
         <div class="section-title">Разделение по цветам</div>
         <div class="param-row">
@@ -197,6 +222,7 @@
         <button class="btn-secondary" onclick="separateColors()">Разделить</button>
       </section>
 
+      <!-- Prompt Library -->
       <section class="panel-section hidden" id="promptSection">
         <div class="section-title">Библиотека промтов</div>
         <select id="promptCategory" class="select" onchange="loadPrompts()">
@@ -210,6 +236,7 @@
         <button class="btn-secondary mt-4" onclick="copyPrompt()">Скопировать</button>
       </section>
 
+      <!-- Save Block -->
       <section class="panel-section hidden" id="saveSection">
         <div class="section-title">Сохранение файла</div>
         <div class="param-row">
@@ -244,13 +271,18 @@
       </section>
     </aside>
 
+    <!-- Canvas Area -->
     <div class="canvas-area">
+      <!-- Empty state -->
       <div id="emptyState" class="empty-state">
         <div class="empty-icon">🖼</div>
         <div class="empty-text">Загрузите изображение для начала работы</div>
         <button class="btn-primary mt-16" onclick="document.getElementById('fileInput').click()">Выбрать файл</button>
       </div>
+
+      <!-- Canvas container -->
       <div id="canvasContainer" class="canvas-container hidden">
+        <!-- Tab: Editor -->
         <div id="tabEditor" class="tab-pane active">
           <div class="canvas-toolbar">
             <div class="bg-switcher">
@@ -270,9 +302,13 @@
             <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
           </div>
         </div>
+
+        <!-- Tab: Colors -->
         <div id="tabColors" class="tab-pane hidden">
           <div id="colorLayersGrid" class="color-layers-grid"></div>
         </div>
+
+        <!-- Tab: Layers -->
         <div id="tabLayers" class="tab-pane hidden">
           <div id="layersList" class="layers-list"></div>
         </div>
